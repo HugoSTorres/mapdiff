@@ -2,13 +2,17 @@ package mapdiff
 
 import "fmt"
 
-type result struct {
+// Result encapsulates the result of a comparison. It stores the result as well as the diff of the two objects.
+type Result struct {
 	Equal bool
 	Diff  string
 }
 
-func Compare(x, y map[string]interface{}) result {
-	r := result{
+// Compare compares two json like objects and determines whether or not they are equal, and created a diff of both of
+// them. As of right now objects being compared must have string keys and cannot be nested.
+func Compare(x, y map[string]interface{}) Result {
+	// TODO: Allow nested objects
+	r := Result{
 		Equal: true,
 		Diff:  "",
 	}
@@ -16,26 +20,41 @@ func Compare(x, y map[string]interface{}) result {
 	for k, v := range x {
 		if yval, yok := y[k]; !yok {
 			r.Equal = false
-			r.Diff += fmt.Sprintf("+ %q: %v\n", k, v)
+			switch v.(type) {
+			case string, rune:
+				r.Diff += fmt.Sprintf("+%q: %q\n", k, v)
+			default:
+				r.Diff += fmt.Sprintf("+%q: %v\n", k, v)
+			}
 		} else if v != yval {
 			r.Equal = false
-			r.Diff += fmt.Sprintf("+ %q: %v\n- %v: %v", k, v, k, yval)
+			switch v.(type) {
+			case string, rune:
+				r.Diff += fmt.Sprintf("+%q: %v\n-%q: %q\n", k, v, k, yval)
+			default:
+				r.Diff += fmt.Sprintf("+%q: %v\n-%q: %v\n", k, v, k, yval)
+			}
 		} else {
 			switch v.(type) {
-			case string:
+			case string, rune:
 				r.Diff += fmt.Sprintf("%q: %q\n", k, v)
 			default:
 				r.Diff += fmt.Sprintf("%q: %v\n", k, v)
 			}
+		}
+	}
 
+	for k, v := range y {
+		if _, xok := x[k]; !xok {
+			r.Equal = false
+			switch v.(type) {
+			case string, rune:
+				r.Diff += fmt.Sprintf("-%q: %q\n", k, v)
+			default:
+				r.Diff += fmt.Sprintf("-%q: %v\n", k, v)
+			}
 		}
 	}
 
 	return r
 }
-
-// func makeDiffEntry(xk, yk string, xv, yv interface{}) (string, error) {
-// 	e := fmt.Sprintf("+ %v: %v\n", xk, xv)
-//
-// 	return fmt.Sprintf("+ %v: %v\n")
-// }
